@@ -3,9 +3,12 @@ from datetime import datetime
 import tarfile
 import dropbox
 from ftplib import FTP
+import itertools
+
 
 class BackupForger:
     def __init__(self, payload):
+        self.backupStatus = "Successful"
         self.backupContent = payload["backupContent"]
         self.backupDest = payload["backupDest"]
         self.backupSchedule = payload["backupSchedule"]
@@ -20,17 +23,17 @@ class BackupForger:
         if self.backupContent != "all":
             self.volumePath += self.backupContent
 
-    def getData(self):
-        print("backupContent:", self.backupContent)
-        print("backupDest:", self.backupDest)
-        print("backupSchedule:", self.backupSchedule)
-        print("dropboxKey:", self.dropboxKey)
-        print("host:", self.hostname)
-        print("username:", self.username)
-        print("password:", self.password)
-        print("time:", self.time)
-        print("volumePath:", self.volumePath)
-        print("outputFile:", self.outputFile)
+    #def getData(self):
+    #    print("backupContent:", self.backupContent)
+    #    print("backupDest:", self.backupDest)
+    #    print("backupSchedule:", self.backupSchedule)
+    #    print("dropboxKey:", self.dropboxKey)
+    #    print("host:", self.hostname)
+    #    print("username:", self.username)
+    #    print("password:", self.password)
+    #    print("time:", self.time)
+    #    print("volumePath:", self.volumePath)
+    #    print("outputFile:", self.outputFile)
     
     def compressVolume(self):
         self.outputFile = datetime.now().strftime("%d-%m-%y_%H-%M_%S-$f")[:-3] + self.backupContent + ".tar.gz"
@@ -40,24 +43,40 @@ class BackupForger:
         return outputPath
 
     def sendToDropbox(self, compressedFile):
-        client = dropbox.Dropbox(self.dropboxKey)
-        with open(compressedFile, 'rb') as f:
-            client.files_upload(f.read(), "/" + self.outputFile)
+        try:
+            client = dropbox.Dropbox(self.dropboxKey)
+            with open(compressedFile, 'rb') as f:
+                client.files_upload(f.read(), "/" + self.outputFile)
+            self.backupStatus = "Successful"
+        except Exception as e:
+            print(f"Failed to send to Dropbox: {e}")
+            self.backupStatus = "Failed"
 
     def sendToFtp(self, compressedFile):
-        with FTP(self.hostname, self.username, self.password) as ftp, open(compressedFile, 'rb') as f:
-            print(f'STOR {self.ftpPath + "/" + self.outputFile}')
-            ftp.storbinary(f'STOR {self.ftpPath + "/" + self.outputFile}', f)
+        try:
+            with FTP(self.hostname, self.username, self.password) as ftp, open(compressedFile, 'rb') as f:
+                print(f'STOR {self.ftpPath + "/" + self.outputFile}')
+                ftp.storbinary(f'STOR {self.ftpPath + "/" + self.outputFile}', f)
+            self.backupStatus = "Successful"
+        except Exception as e:
+            print(f"Failed to send to FTP: {e}")
+            self.backupStatus = "Failed"
 
-    def makeBackup(self):
-        compressedFile = self.compressVolume()
-        if self.backupDest == "dropbox":
-            print("Sending to dropbox has been started..")
-            self.sendToDropbox(compressedFile)
-        elif self.backupDest == "ftp":
-            self.sendToFtp()
+    def addToHistory(self):
+        entry = f'Backup at {self.time} sent to {self.backupDest} has completed with status: {self.backupStatus}.\n'
+        print(entry)
+        with open("./history", 'a') as f:
+            f.write(entry)
+    
 
 
+def getLastHistoryEntries():
+    res = ""
+    with open("./history", 'r') as f:
+        for line in itertools.islice(f, 10):
+            res += line.strip() + "\n"
+
+    return res
 
 
 
@@ -70,11 +89,17 @@ def do_backup():
     if res.backupDest == "dropbox":
         print("Sending to dropbox has been started..")
         res.sendToDropbox(compressedFile)
+
     elif res.backupDest == "ftp":
         print("Sending to ftp has been started..")
         res.sendToFtp(compressedFile)
-
+    
+    res.addToHistory()
     return {"status": 200}
+
+@app.route("/history")
+def get_history():
+    return getLastHistoryEntries()
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 
 function getCurrentDateTime() {
@@ -13,10 +13,22 @@ function getCurrentDateTime() {
 }
 
 function App() {
+  const [history, setHistory] = useState("");
+  const [historyCount, setHistoryCount] = useState(0);
+
+  useEffect(() => {
+    setLogLoad(true)
+    fetch("/history")
+    .then(response => response.text())
+    .then(data => {setHistory(data); setLogLoad(false)})
+    .catch(error => console.log("Error: ", error))
+  }, [historyCount])
+
   const [backupContent, setBackupContent] = useState("");
   const [backupDest, setBackupDest] = useState("dropbox");
   const [backupSchedule, setBackupSchedule] = useState("");
-  
+  const [logLoad, setLogLoad] = useState(true);
+
   const [dropboxKey, setDropboxKey] = useState("");
 
   const [host, setHost] = useState("");
@@ -65,7 +77,10 @@ function App() {
         time: getCurrentDateTime(),
       }),
     }).then(
-      setTimeout(() => setMessage(`Backup started...\nContent selected is: ${backupContent}\nDestination choosen to send backup to is: ${backupDest}\nBackup scheduled time is: now\nBackup finished!\n`), 5000)
+      setTimeout(() => {
+        setMessage(`Backup started...\nContent selected is: ${backupContent}\nDestination choosen to send backup to is: ${backupDest}\nBackup scheduled time is: now\nBackup finished!\n`)
+        setHistoryCount(historyCount + 1)
+      }, 5000)
     ).catch(
       error => {
         console.log("Error: ", error);
@@ -176,7 +191,10 @@ function App() {
           <div className="space-y-8">
             <div className="custom-bg-dark p-6 rounded-lg shadow-lg">
               <h2 className="text-2xl font-semibold mb-4 custom-text-blue">Backup History</h2>
-              <p>No backup history available.</p>
+              <div style={{ whiteSpace: 'pre-line' }}>
+                {(logLoad == false) ? ((history === "") ? <p>No backup history available.</p> : history) : <p>Loading...</p>}
+              </div>
+              
             </div>
             <div className="custom-bg-dark p-6 rounded-lg shadow-lg">
               <h2 className="text-2xl font-semibold mb-4 custom-text-blue">Console Log</h2>

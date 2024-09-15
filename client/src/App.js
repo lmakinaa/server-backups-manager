@@ -13,16 +13,18 @@ function getCurrentDateTime() {
 }
 
 function App() {
-  const [backupStatus, setBackupStatus] = useState(0);
   const [backupContent, setBackupContent] = useState("");
-  const [backupDest, setBackupDest] = useState("");
+  const [backupDest, setBackupDest] = useState("dropbox");
   const [backupSchedule, setBackupSchedule] = useState("");
   
-  const [googleApiKey, setGoogleApiKey] = useState("");
+  const [dropboxKey, setDropboxKey] = useState("");
 
   const [host, setHost] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [ftpPath, setFtpPath] = useState("");
+
+  const [message, setMessage] = useState("No console logs available.");
 
   const handleBackupSchedule = (e) => {
     console.log(e.target.value);
@@ -39,11 +41,15 @@ function App() {
     console.log(e.target.value);
     setBackupDest(e.target.value);
   }
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setBackupStatus(1);
-  
+
+    setMessage("Backup started...\n")
+    setTimeout(() => setMessage(`Backup started...\nContent selected is: ${backupContent}\n`), 1000);
+    setTimeout(() => setMessage(`Backup started...\nContent selected is: ${backupContent}\nDestination choosen to send backup to is: ${backupDest}\n`), 2000);
+    setTimeout(() => setMessage(`Backup started...\nContent selected is: ${backupContent}\nDestination choosen to send backup to is: ${backupDest}\nBackup scheduled time is: now\n`), 3000);
+
     await fetch("/start-backup", {
       method: "POST",
       headers: {'Content-Type': 'application/json'},
@@ -51,19 +57,21 @@ function App() {
         backupContent: backupContent,
         backupDest: backupDest,
         backupSchedule: backupSchedule,
+        dropboxKey: dropboxKey,
         host: host,
         username: username,
         password: password,
+        ftpPath: ftpPath,
         time: getCurrentDateTime(),
       }),
     }).then(
-      res => res.json()
-    ).then(
-      data => {
-        console.log(data);
+      setTimeout(() => setMessage(`Backup started...\nContent selected is: ${backupContent}\nDestination choosen to send backup to is: ${backupDest}\nBackup scheduled time is: now\nBackup finished!\n`), 5000)
+    ).catch(
+      error => {
+        console.log("Error: ", error);
+        setMessage(`Backup started...\nContent selected is: ${backupContent}\nDestination choosen to send backup to is: ${backupDest}\nBackup scheduled time is: now\nAn error occurred during the backup.\n`)
       }
     )
-    setBackupStatus(2);
   }
 
   return (
@@ -87,18 +95,18 @@ function App() {
                 <ul className="space-y-2">
                   <li>
                     <label className="inline-flex items-center cursor-pointer">
-                      <input value="all" type="radio" name="backup-content" className="custom-checkbox" onChange={handleBackupChange} />
+                      <input value="all" type="radio" name="backup-content" className="custom-checkbox" onChange={handleBackupChange} required />
                       <span className="ml-2">All</span></label>
                   </li>
                   <li>
                     <label className="inline-flex items-center cursor-pointer">
-                      <input value="wordpress" type="radio" name="backup-content" className="custom-checkbox" onChange={handleBackupChange} />
+                      <input value="wp" type="radio" name="backup-content" className="custom-checkbox" onChange={handleBackupChange} />
                       <span className="ml-2">WordPress Files only</span>
                     </label>
                   </li>
                   <li>
                     <label className="inline-flex items-center cursor-pointer">
-                      <input value="database" type="radio" name="backup-content" className="custom-checkbox" onChange={handleBackupChange} />
+                      <input value="db" type="radio" name="backup-content" className="custom-checkbox" onChange={handleBackupChange} />
                       <span className="ml-2">Database only</span>
                     </label>
                   </li>
@@ -106,13 +114,13 @@ function App() {
               </div>
               <div className="mb-4">
                 <h3 className="text-xl mb-2">Destination</h3>
-                <select className="custom-select w-full" onChange={handleBackupDest}>
-                  <option value="google-drive">Google Drive</option>
+                <select className="custom-select w-full" onChange={handleBackupDest} required>
+                  <option value="dropbox" selected>Dropbox</option>
                   <option value="ftp">FTP Server</option>
                 </select>
                 {backupDest === "ftp" ?
                 <div>
-                  <input
+                  <input required
                     type="text"
                     placeholder='Host..'
                     name="ftp-server"
@@ -120,7 +128,7 @@ function App() {
                     value={host}
                     onChange={(e) => setHost(e.target.value)}
                   />
-                  <input
+                  <input required
                     type="text"
                     placeholder='Username..'
                     name="ftp-server"
@@ -128,7 +136,7 @@ function App() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                   />
-                  <input
+                  <input required
                     type="password"
                     placeholder='Password..'
                     name="ftp-server"
@@ -136,22 +144,30 @@ function App() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
-                </div>
-                : <div><input
+                  <input required
                     type="text"
-                    placeholder='Api Key..'
-                    name="google-api-key"
+                    placeholder='Path..'
+                    name="ftp-server"
                     className="mt-2 custom-text w-full"
-                    value={googleApiKey}
-                    onChange={(e) => setGoogleApiKey(e.target.value)}
+                    value={ftpPath}
+                    onChange={(e) => setFtpPath(e.target.value)}
+                  />
+                </div>
+                : <div><input required
+                    type="text"
+                    placeholder='Access token..'
+                    name="dropbox-key"
+                    className="mt-2 custom-text w-full"
+                    value={dropboxKey}
+                    onChange={(e) => setDropboxKey(e.target.value)}
                   /></div>}
               </div>
               <div className="mb-4">
                 <h3 className="text-xl mb-2">Schedule</h3>
                 <select className="custom-select w-full" onChange={handleBackupSchedule}>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="Now">Now</option>
+                  {/*<option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>*/}
                 </select>
               </div>
               <button className="custom-button w-full">Start Backup</button>
@@ -165,12 +181,7 @@ function App() {
             <div className="custom-bg-dark p-6 rounded-lg shadow-lg">
               <h2 className="text-2xl font-semibold mb-4 custom-text-blue">Console Log</h2>
               <div className="bg-black text-green-400 p-4 rounded font-mono" style={{ whiteSpace: 'pre-line' }}>
-                {backupStatus === 0
-                  ? "No console logs available."
-                  : (backupStatus === 1
-                    ? "Backup started..."
-                    : "Backup started...\nBackup finished!")
-                }
+                {message}
               </div>
             </div>
           </div>

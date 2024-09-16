@@ -10,6 +10,7 @@ itsdangerous==2.2.0
 Jinja2==3.1.4
 MarkupSafe==2.1.5
 ply==3.11
+python-dotenv==1.0.1
 requests==2.32.3
 six==1.16.0
 stone==3.3.1

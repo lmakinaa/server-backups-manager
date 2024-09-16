@@ -21,7 +21,7 @@ function App() {
     fetch("/history")
     .then(response => response.text())
     .then(data => {setHistory(data); setLogLoad(false)})
-    .catch(error => console.log("Error: ", error))
+    .catch(error => {console.log("Error: ", error); setLogLoad(false)})
   }, [historyCount])
 
   const [backupContent, setBackupContent] = useState("");
@@ -76,17 +76,27 @@ function App() {
         ftpPath: ftpPath,
         time: getCurrentDateTime(),
       }),
-    }).then(
+    }).then( res => {
+      if (!res.ok) {
+        setTimeout(() => {
+        setMessage(`Backup started...\nContent selected is: ${backupContent}\nDestination choosen to send backup to is: ${backupDest}\nBackup scheduled time is: now\nAn error occurred during the backup.\n`)
+        }, 5000)
+        setTimeout(() => {
+          setHistoryCount(historyCount + 1)
+        }, 5500)
+        return
+      }
+
+      console.log(res);
+    
       setTimeout(() => {
         setMessage(`Backup started...\nContent selected is: ${backupContent}\nDestination choosen to send backup to is: ${backupDest}\nBackup scheduled time is: now\nBackup finished!\n`)
-        setHistoryCount(historyCount + 1)
       }, 5000)
-    ).catch(
-      error => {
-        console.log("Error: ", error);
-        setMessage(`Backup started...\nContent selected is: ${backupContent}\nDestination choosen to send backup to is: ${backupDest}\nBackup scheduled time is: now\nAn error occurred during the backup.\n`)
-      }
-    )
+      setTimeout(() => {
+        setHistoryCount(historyCount + 1)
+      }, 5500)
+
+    })
   }
 
   return (
@@ -129,8 +139,8 @@ function App() {
               </div>
               <div className="mb-4">
                 <h3 className="text-xl mb-2">Destination</h3>
-                <select className="custom-select w-full" onChange={handleBackupDest} required>
-                  <option value="dropbox" selected>Dropbox</option>
+                <select className="custom-select w-full" defaultValue="dropbox" onChange={handleBackupDest} required>
+                  <option value="dropbox">Dropbox</option>
                   <option value="ftp">FTP Server</option>
                 </select>
                 {backupDest === "ftp" ?
@@ -192,7 +202,7 @@ function App() {
             <div className="custom-bg-dark p-6 rounded-lg shadow-lg">
               <h2 className="text-2xl font-semibold mb-4 custom-text-blue">Backup History</h2>
               <div style={{ whiteSpace: 'pre-line' }}>
-                {(logLoad == false) ? ((history === "") ? <p>No backup history available.</p> : history) : <p>Loading...</p>}
+                {(logLoad === false) ? ((history === "") ? <p>No backup history available.</p> : history) : <p>Loading...</p>}
               </div>
               
             </div>

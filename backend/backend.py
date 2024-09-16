@@ -1,10 +1,14 @@
-from flask import Flask, jsonify, request
+from flask import Flask, request
 from datetime import datetime
+from dotenv import load_dotenv
 import tarfile
 import dropbox
 from ftplib import FTP
 import itertools
+import os
 
+
+load_dotenv()
 
 class BackupForger:
     def __init__(self, payload):
@@ -18,22 +22,10 @@ class BackupForger:
         self.password = payload["password"]
         self.ftpPath = payload["ftpPath"]
         self.time = payload["time"]
-        self.volumePath = "./data/"
+        self.volumePath = os.getenv('VOLUMES_ROOT_PATH')
         self.outputFile = ""
         if self.backupContent != "all":
             self.volumePath += self.backupContent
-
-    #def getData(self):
-    #    print("backupContent:", self.backupContent)
-    #    print("backupDest:", self.backupDest)
-    #    print("backupSchedule:", self.backupSchedule)
-    #    print("dropboxKey:", self.dropboxKey)
-    #    print("host:", self.hostname)
-    #    print("username:", self.username)
-    #    print("password:", self.password)
-    #    print("time:", self.time)
-    #    print("volumePath:", self.volumePath)
-    #    print("outputFile:", self.outputFile)
     
     def compressVolume(self):
         self.outputFile = datetime.now().strftime("%d-%m-%y_%H-%M_%S-$f")[:-3] + self.backupContent + ".tar.gz"
@@ -65,17 +57,16 @@ class BackupForger:
     def addToHistory(self):
         entry = f'Backup at {self.time} sent to {self.backupDest} has completed with status: {self.backupStatus}.\n'
         print(entry)
-        with open("./history", 'a') as f:
+        with open(os.getenv('HISTORY_PATH'), 'a') as f:
             f.write(entry)
     
 
 
 def getLastHistoryEntries():
     res = ""
-    with open("./history", 'r') as f:
+    with open(os.getenv('HISTORY_PATH'), 'r') as f:
         for line in itertools.islice(f, 10):
             res += line.strip() + "\n"
-
     return res
 
 
@@ -95,7 +86,11 @@ def do_backup():
         res.sendToFtp(compressedFile)
     
     res.addToHistory()
-    return {"status": 200}
+    
+    if res.backupStatus == "Failed":
+        return "Backup failed", 400
+    return "Backup Successful", 200
+
 
 @app.route("/history")
 def get_history():
